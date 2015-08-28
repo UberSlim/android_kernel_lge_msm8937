@@ -125,6 +125,9 @@
 		} \
 	} while (0)
 
+unsigned int temp_threshold = 50;
+module_param(temp_threshold, int, 0755);
+
 static struct msm_thermal_data msm_thermal_info;
 static struct delayed_work check_temp_work, retry_hotplug_work;
 static bool core_control_enabled;
@@ -3365,38 +3368,38 @@ static void do_freq_control(long temp)
 	if (!freq_table_get)
 		return;
 
-	if (temp >= msm_thermal_info.limit_temp_degC) {
+	if (temp >= temp_threshold) {
 		if (limit_idx == limit_idx_low)
 			return;
 
 		limit_idx -= msm_thermal_info.bootup_freq_step;
 		if (limit_idx < limit_idx_low)
 			limit_idx = limit_idx_low;
-	} else if (temp < msm_thermal_info.limit_temp_degC -
+		max_freq = table[limit_idx].frequency;
+	} else if (temp < temp_threshold -
 		 msm_thermal_info.temp_hysteresis_degC) {
 		if (limit_idx == limit_idx_high)
 			return;
 
 		limit_idx += msm_thermal_info.bootup_freq_step;
-		if (limit_idx >= limit_idx_high)
+		if (limit_idx >= limit_idx_high) {
 			limit_idx = limit_idx_high;
+			max_freq = UINT_MAX;
+		} else
+			max_freq = table[limit_idx].frequency;
 	}
+
+	if (max_freq == cpus[cpu].limited_max_freq)
+		return;
 
 	/* Update new limits */
 	get_online_cpus();
-	max_freq = table[limit_idx].frequency;
-	if (max_freq == cpus[cpu].limited_max_freq) {
-		put_online_cpus();
-		return;
-	}
-
 	for_each_possible_cpu(cpu) {
 		if (!(msm_thermal_info.bootup_freq_control_mask & BIT(cpu)))
 			continue;
 		pr_info("Limiting CPU%d max frequency to %u. Temp:%ld\n",
 			cpu, max_freq, temp);
-		cpus[cpu].limited_max_freq =
-				min(max_freq, cpus[cpu].vdd_max_freq);
+		cpus[cpu].limited_max_freq = max_freq;
 		if (!SYNC_CORE(cpu))
 			update_cpu_freq(cpu);
 	}
