@@ -35,6 +35,27 @@ config IOSCHED_DEADLINE
 config IOSCHED_MAPLE
 	tristate "Maple I/O scheduler"
 	default y
+	---help---
+	  Maple is based on the Zen and Simple I/O schedulers. It uses 
+	  ZEN's first-come-first-serve style algorithm with separate
+	  read/write requests and improved former/latter request handling
+	  from SIO. Maple is biased towards handling asynchronous requests
+	  before synchronous, and read requests before write. While this can
+	  have negative aspects on write intensive tasks like file copying,
+	  it slightly improves UI responsiveness. When the device is asleep,
+	  maple increases the expiry time of requests so that it can handle
+	  them more slowly, causing less overhead.
+
+config IOSCHED_ROW
+	tristate "ROW I/O scheduler"
+	default y
+	---help---
+	  The ROW I/O scheduler gives priority to READ requests over the
+	  WRITE requests when dispatching, without starving WRITE requests.
+	  Requests are kept in priority queues. Dispatching is done in a RR
+	  manner when the dispatch quantum for each queue is calculated
+	  according to queue priority.
+	  Most suitable for mobile devices.
 
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
@@ -91,24 +112,27 @@ choice
 	config DEFAULT_MAPLE
 		bool "Maple" if IOSCHED_MAPLE=y
 
+	config DEFAULT_ROW
+		bool "ROW" if IOSCHED_ROW=y
+
 	config DEFAULT_CFQ
 		bool "CFQ" if IOSCHED_CFQ=y
 
 	config DEFAULT_NOOP
-		bool "No-op"
+		bool "No-op" if IOSCHED_NOOP=y
 
 	config DEFAULT_ZEN
 		bool "ZEN" if IOSCHED_ZEN=y
 
 	config DEFAULT_SIO
 		bool "SIO" if IOSCHED_SIO=y
-
 endchoice
 
 config DEFAULT_IOSCHED
 	string
 	default "deadline" if DEFAULT_DEADLINE
 	default "maple" if DEFAULT_MAPLE
+	default "row" if DEFAULT_ROW
 	default "cfq" if DEFAULT_CFQ
 	default "noop" if DEFAULT_NOOP
 	default "zen" if DEFAULT_ZEN
