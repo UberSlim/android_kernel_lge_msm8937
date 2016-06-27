@@ -11346,6 +11346,9 @@ static int smbchg_probe(struct spmi_device *spmi)
 			get_prop_batt_present(chip),
 			chip->dc_present, chip->usb_present);
 
+	/* Initialize as an USB supply! */
+	if (chip->usb_supply_type == POWER_SUPPLY_TYPE_UNKNOWN)
+		smbchg_change_usb_supply_type(chip, POWER_SUPPLY_TYPE_USB);
 	return 0;
 
 #ifdef CONFIG_LGE_PM_FACTORY_TESTMODE
